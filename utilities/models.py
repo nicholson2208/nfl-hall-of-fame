@@ -6,13 +6,11 @@ class Player:
         self.hall_of_famer = hall_of_fame
         self.starting_year = starting
         self.ending_year = ending
-        self.positions = positions.split("-")
+        self.positions = positions
         self.passing = None
         self.rushing = None
         self.receiving = None
 
-
-
     def __str__(self) -> str:
-        s = "{0} at {1}, {2}".format(self.name, self.latitude, self.longitude)
+        s = "{0} is {1}".format(self.name, "a Hall of Famer" if self.hall_of_famer else "is a scrub")
         return s
