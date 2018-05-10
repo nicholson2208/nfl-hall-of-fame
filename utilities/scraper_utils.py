@@ -40,6 +40,7 @@ def get_players():
                 print("Something weird with {0}".format(player_anchor_tag))
 
     print(len(players))
+
     write_playerlist_to_csv(players)
     print("hi")
 
@@ -53,10 +54,10 @@ def write_playerlist_to_csv(players, filename="../data/player_list.csv"):
     """
     with open(filename, "w", newline='') as outfile:
         filewriter = csv.writer(outfile)
-        filewriter.writerow(["Player Name", "Link", "Starting Year", "Ending Year", "Hall of Fame"])
+        filewriter.writerow(["Player Name", "Positions" "Link", "Starting Year", "Ending Year", "Hall of Fame"])
 
         for player in players:
-            row = [player.name, player.website, player.starting_year, player.ending_year, player.hall_of_famer]
+            row = [player.name, player.positions, player.website, player.starting_year, player.ending_year, player.hall_of_famer]
             filewriter.writerow(row)
 
 
@@ -74,11 +75,11 @@ def read_playerlist_from_csv(starting_range=1985, ending_range=2005, path="../da
             players = []
             for line in csv_reader:
                 name = line[0]
-                website = line[1]
-                position = ["This is garbage"]  # TODO: oops, I forgot to put this in the csv
-                start = int(line[2])
-                end = int(line[3])
-                hof = bool(line[4])
+                position = eval(line[1]) # TODO: oops, I forgot to put this in the csv
+                website = line[2]
+                start = int(line[3])
+                end = int(line[4])
+                hof = bool(line[5])
 
                 if start >= starting_range and end <= ending_range:  # filter the player that we actually want
                     player = Player(name, website, position, start, end, hof)
@@ -95,6 +96,8 @@ def scape_players():
     """
     starting_range = 1985
     ending_range = 2005
+
+    # TODO: Add the thing with sys to see if the file exists. If yes, read it. Do the scrape again
     players = read_playerlist_from_csv(starting_range=starting_range, ending_range=ending_range)
 
     for player in players:
@@ -133,5 +136,24 @@ def write_player_data_to_csv(players, path="../data/player_data.csv"):
     pass
 
 
+def summarize_position_counts(players):
+    all_positions = {}
+    count = 0
+
+    for player in players:
+        count += 1
+
+        for pos in player.positions:
+            if pos in all_positions.keys():
+                all_positions[pos] += 1
+            else:
+                all_positions[pos] = 1
+
+    print(all_positions)
+
+
 if __name__ == "__main__":
-    scape_players()
+    players = read_playerlist_from_csv(starting_range=1985, ending_range=2017)
+    summarize_position_counts(players)
+
+
