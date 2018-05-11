@@ -32,7 +32,10 @@ def get_players():
                 # print(position)
                 starting = player_anchor_tag[-13:-9]
                 ending = player_anchor_tag[-8:-4]
-                hof = "+" in player_anchor_tag
+                if "+" in player_anchor_tag:
+                    hof = 1
+                else:
+                    hof = 0
 
                 players.append(Player(name, website, position, starting, ending, hof))
 
@@ -79,7 +82,7 @@ def read_playerlist_from_csv(starting_range=1985, ending_range=2005, path="../da
                 website = line[2]
                 start = int(line[3])
                 end = int(line[4])
-                hof = bool(line[5])
+                hof = int(line[5])
 
                 if start >= starting_range and end <= ending_range:  # filter the player that we actually want
                     player = Player(name, website, position, start, end, hof)
@@ -136,24 +139,44 @@ def write_player_data_to_csv(players, path="../data/player_data.csv"):
     pass
 
 
-def summarize_position_counts(players):
-    all_positions = {}
+def summarize_positions(players):
+    players_by_positions = {}
+    hof_by_positions = {}
     count = 0
+    hof_count = 0
 
     for player in players:
         count += 1
-
+        if player.hall_of_famer:
+            hof_count += 1
         for pos in player.positions:
-            if pos in all_positions.keys():
-                all_positions[pos] += 1
-            else:
-                all_positions[pos] = 1
+            if pos in hof_by_positions.keys():
+                hof_by_positions[pos][1] += 1
+                if player.hall_of_famer:
+                    hof_by_positions[pos][0] += 1
 
-    print(all_positions)
+                players_by_positions[pos].append(player)
+
+            else:
+                players_by_positions[pos] = [player]
+                hof_by_positions[pos] = [0,0]
+                hof_by_positions[pos][1] = 1  # the total num of players in this position
+                if player.hall_of_famer:  #
+                    hof_by_positions[pos][0] = 1  # the number of hof players in this position
+
+
+        for k,v in hof_by_positions.items():
+            print("There are {0} {1}s".format(v[1],k))
+            print("{0}% of {1}s are in the HOF".format(100*v[0]/v[1], k))
+
+    print("There are {0} players and {1} HOFers, which is {2}%".format(count, hof_count, 100*hof_count/count) )
+
+    return players_by_positions, hof_by_positions
 
 
 if __name__ == "__main__":
-    players = read_playerlist_from_csv(starting_range=1985, ending_range=2017)
-    summarize_position_counts(players)
+    #get_players()
+    players = read_playerlist_from_csv(starting_range=1985, ending_range=2005)
+    summarize_positions(players)
 
 
