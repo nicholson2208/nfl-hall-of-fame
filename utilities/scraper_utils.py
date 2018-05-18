@@ -1,7 +1,9 @@
 import requests
 import time
 import csv
+import os
 from bs4 import BeautifulSoup
+
 
 from utilities.models import Player
 
@@ -72,6 +74,9 @@ def read_playerlist_from_csv(starting_range=1985, ending_range=2005, path="../da
     :param path:
     :return:
     """
+    if not os.path.exists(path):
+        os.makedirs(path)
+
     with open(path, "r") as infile:
             csv_reader = csv.reader(infile)
             header = next(csv_reader)  # do we need to do anything with this?
@@ -178,5 +183,4 @@ if __name__ == "__main__":
     #get_players()
     players = read_playerlist_from_csv(starting_range=1985, ending_range=2005)
     summarize_positions(players)
-
 
