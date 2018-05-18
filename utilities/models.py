@@ -1,7 +1,7 @@
 class Player:
     def __init__(self, name, website, positions, starting, ending, hall_of_fame):
         self.name = name
-        self.website = "https://www.pro-football-reference.com" + website
+        self.website = website
         self.id = None
         self.hall_of_famer = hall_of_fame
         self.starting_year = starting

@@ -2,6 +2,7 @@ import requests
 import time
 import csv
 import os
+import pandas as pd
 from bs4 import BeautifulSoup
 
 
@@ -39,6 +40,7 @@ def get_players():
                 else:
                     hof = 0
 
+                website = "https://www.pro-football-reference.com" + website
                 players.append(Player(name, website, position, starting, ending, hof))
 
             except:
@@ -97,7 +99,7 @@ def read_playerlist_from_csv(starting_range=1985, ending_range=2005, path="../da
 
             return players
 
-def scape_players():
+def scrape_players():
     """
 
     :return:
@@ -108,7 +110,9 @@ def scape_players():
     # TODO: Add the thing with sys to see if the file exists. If yes, read it. Do the scrape again
     players = read_playerlist_from_csv(starting_range=starting_range, ending_range=ending_range)
 
-    for player in players:
+
+    # TODO: change this next line back to player
+    for player in players[:10]:
         scrape_player(player)
 
     write_player_data_to_csv(players, path="../data/player_data{0}-{1}.csv".format(starting_range,ending_range))
@@ -121,23 +125,91 @@ def scrape_player(player):
     :return:
     """
 
+    print(player.website)
     r = requests.get(player.website)
     time.sleep(.04)
     soup = BeautifulSoup(r.content, "lxml")
 
-    # get the position(s)
+    df = pd.DataFrame()
+
+    get_passing(player,soup,df)
+
+    get_rush_rec(player, soup, df)
+
+    get_returns(player, soup, df)
+
+    get_kick_punt(player, soup, df)
+
+    get_defense(player, soup, df)
 
     # get passing stats
+    # J
 
-    # get rushing stats
+    # get rushing and rec stats
+    rush_rec_table_list = soup.find_all("div", {"id": "div_rushing_and_receiving"})
 
-    # get receiving stats
+    if len(rush_rec_table_list) == 0:
+        # either make a bunch of 0s or TBD
+        pass
+    else:
+        # there should only be one
+        # now get all of the shit
+        print()
 
-    # get kicking and punting stats
 
-    # get returning stats
+def get_passing(player, soup, df):
+    """
+    Jayden
+    :param player:
+    :param soup:
+    :param df:
+    :return:
+    """
+    pass
 
-    # get blocking stats?
+
+def get_rush_rec(player, soup, df):
+    """
+    Matt
+    :param player:
+    :param soup:
+    :param df:
+    :return:
+    """
+    pass
+
+
+def get_returns(player, soup, df):
+    """
+    Matt
+    :param player:
+    :param soup:
+    :param df:
+    :return:
+    """
+    pass
+
+
+def get_kick_punt(player, soup, df):
+    """
+    Jayden
+    :param player:
+    :param soup:
+    :param df:
+    :return:
+    """
+    pass
+
+
+def get_defense(player, soup, df):
+    """
+    Jayden
+    :param player:
+    :param soup:
+    :param df:
+    :return:
+    """
+    pass
 
 
 def write_player_data_to_csv(players, path="../data/player_data.csv"):
@@ -181,6 +253,7 @@ def summarize_positions(players):
 
 if __name__ == "__main__":
     #get_players()
-    players = read_playerlist_from_csv(starting_range=1985, ending_range=2005)
-    summarize_positions(players)
+    #players = read_playerlist_from_csv(starting_range=1985, ending_range=2005)
+    scrape_players()
+    #summarize_positions(players)
 
