@@ -132,7 +132,7 @@ def scrape_player(player):
 
     df = pd.DataFrame()
 
-    get_passing(player,soup,df)
+    get_passing(player, soup, df)
 
     get_rush_rec(player, soup, df)
 
@@ -165,7 +165,64 @@ def get_passing(player, soup, df):
     :param df:
     :return:
     """
-    pass
+    passing_table_list = soup.find_all("div", {"id": "div_passing"})
+    start_yr = player.starting_year
+
+    if len(passing_table_list) == 0:
+        # either make a bunch of 0s or TBD
+        pass
+    else:
+        passing_table = passing_table_list[0]
+        for year_num in range(4):
+            this_year_stats = passing_table.find("tr", {"id": "passing." + str(start_yr + year_num)})
+
+            if not this_year_stats:
+                # placeholder
+                print(start_yr + year_num)
+                continue
+
+            for datum in this_year_stats.find_all("td"):
+                shorter = str(datum).split("data-stat")[1]
+                stat_name = shorter.split('"')[1]
+
+                try:
+                    # get value of attribute
+                    if stat_name == "team":
+                        data = shorter.split('title="')[1].split('"')[0]
+                    elif stat_name == "qb_rec":
+                        data = shorter.split('csk="')[1].split('"')[0]
+                    else:
+                        data = shorter.split(">")[1].split("<")[0]
+
+                    # format value of attribute
+                    if stat_name == "team" or stat_name == "pos":
+                        data = data.upper()
+                    else:
+                        data = float(data)
+
+                    df[stat_name + "_" + str(year_num)] = [data]
+                except:
+                    df[stat_name + "_" + str(year_num)] = "?"
+
+            # ProBowl/AllPro Info
+            for year_label in this_year_stats.find_all("th"):
+                data = str(year_label).split("</a>")[1].split("</th>")[0]
+                print(data)
+                if data == "*+":
+                    data1 = True
+                    data2 = True
+                elif data == "*":
+                    data1 = True
+                    data2 = False
+                elif data == "+":
+                    data1 = False
+                    data2 = True
+                else:
+                    data1 = False
+                    data2 = False
+                df["pro_bowl_" + str(year_num)] = [data1]
+                df["all_pro_" + str(year_num)] = [data2]
+    return df
 
 
 def get_rush_rec(player, soup, df):
