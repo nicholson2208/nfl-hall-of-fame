@@ -206,23 +206,7 @@ def get_passing(player, soup, df):
 
             # ProBowl/AllPro Info
             for year_label in this_year_stats.find_all("th"):
-                data = str(year_label).split("</a>")[1].split("</th>")[0]
-                print(data)
-                if data == "*+":
-                    data1 = True
-                    data2 = True
-                elif data == "*":
-                    data1 = True
-                    data2 = False
-                elif data == "+":
-                    data1 = False
-                    data2 = True
-                else:
-                    data1 = False
-                    data2 = False
-                df["pro_bowl_" + str(year_num)] = [data1]
-                df["all_pro_" + str(year_num)] = [data2]
-    return df
+                get_pro_accolades(year_label, year_num, df)
 
 
 def get_rush_rec(player, soup, df):
@@ -267,6 +251,25 @@ def get_defense(player, soup, df):
     :return:
     """
     pass
+
+
+def get_pro_accolades(year_label, year_num, df):
+    data = str(year_label).split("</a>")[1].split("</th>")[0]
+    print(data)
+    if data == "*+":
+        data1 = True
+        data2 = True
+    elif data == "*":
+        data1 = True
+        data2 = False
+    elif data == "+":
+        data1 = False
+        data2 = True
+    else:
+        data1 = False
+        data2 = False
+    df["pro_bowl_" + str(year_num)] = [data1]
+    df["all_pro_" + str(year_num)] = [data2]
 
 
 def write_player_data_to_csv(players, path="../data/player_data.csv"):
