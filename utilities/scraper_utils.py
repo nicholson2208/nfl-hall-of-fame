@@ -205,8 +205,8 @@ def get_passing(player, soup, df):
                     df[stat_name + "_" + str(year_num)] = "?"
 
             # ProBowl/AllPro Info
-            for year_label in this_year_stats.find_all("th"):
-                get_pro_accolades(year_label, year_num, df)
+            if not player.pro_accolades:
+                get_pro_accolades(this_year_stats, year_num, df, player)
 
 
 def get_rush_rec(player, soup, df):
@@ -239,7 +239,48 @@ def get_kick_punt(player, soup, df):
     :param df:
     :return:
     """
-    pass
+    kicking_table_list = soup.find_all("div", {"id": "div_kicking"})
+    start_yr = player.starting_year
+
+    if len(kicking_table_list) == 0:
+        # either make a bunch of 0s or TBD
+        pass
+    else:
+        kicking_table = kicking_table_list[0]
+        for year_num in range(4):
+            this_year_stats = kicking_table.find("tr", {"id": "kicking." + str(start_yr + year_num)})
+
+            if not this_year_stats:
+                # placeholder
+                print(start_yr + year_num)
+                continue
+
+            for datum in this_year_stats.find_all("td"):
+                shorter = str(datum).split("data-stat")[1]
+                stat_name = shorter.split('"')[1]
+
+                try:
+                    # get value of attribute
+                    if stat_name == "team":
+                        data = shorter.split('title="')[1].split('"')[0]
+                    else:
+                        data = shorter.split(">")[1].split("<")[0]
+
+                    # format value of attribute
+                    if stat_name == "team" or stat_name == "pos":
+                        data = data.upper()
+                    elif stat_name == "fg_per" or "xp_per":
+                        data = float(data.split("%")[0])
+                    else:
+                        data = float(data)
+
+                    df[stat_name + "_" + str(year_num)] = [data]
+                except:
+                    df[stat_name + "_" + str(year_num)] = "?"
+
+            # ProBowl/AllPro Info
+            if not player.pro_accolades:
+                get_pro_accolades(this_year_stats, year_num, df, player)
 
 
 def get_defense(player, soup, df):
@@ -250,24 +291,69 @@ def get_defense(player, soup, df):
     :param df:
     :return:
     """
-    pass
+    def_table_list = soup.find_all("div", {"id": "div_defense"})
+    start_yr = player.starting_year
+
+    if len(def_table_list) == 0:
+        # either make a bunch of 0s or TBD
+        pass
+    else:
+        def_table = def_table_list[0]
+        for year_num in range(4):
+            this_year_stats = def_table.find("tr", {"id": "kicking." + str(start_yr + year_num)})
+
+            if not this_year_stats:
+                # placeholder
+                print(start_yr + year_num)
+                continue
+
+            for datum in this_year_stats.find_all("td"):
+                shorter = str(datum).split("data-stat")[1]
+                stat_name = shorter.split('"')[1]
+
+                try:
+                    # get value of attribute
+                    # Todo: handle 2TM
+                    if stat_name == "team":
+                        data = shorter.split('title="')[1].split('"')[0]
+                    else:
+                        data = shorter.split(">")[1].split("<")[0]
+
+                    # format value of attribute
+                    if stat_name == "team" or stat_name == "pos":
+                        data = data.upper()
+                    else:
+                        data = float(data)
+
+                    df[stat_name + "_" + str(year_num)] = [data]
+                except:
+                    df[stat_name + "_" + str(year_num)] = "?"
+
+            # ProBowl/AllPro Info
+            if not player.pro_accolades:
+                get_pro_accolades(this_year_stats, year_num, df, player)
 
 
-def get_pro_accolades(year_label, year_num, df):
+def get_pro_accolades(this_year_stats, year_num, df, player):
+    year_label = this_year_stats.find("th")
     data = str(year_label).split("</a>")[1].split("</th>")[0]
     print(data)
     if data == "*+":
         data1 = True
         data2 = True
+        player.pro_accolades = ["pro_bowl", "all_pro"]
     elif data == "*":
         data1 = True
         data2 = False
+        player.pro_accolades = ["pro_bowl"]
     elif data == "+":
         data1 = False
         data2 = True
+        player.pro_accolades = ["all_pro"]
     else:
         data1 = False
         data2 = False
+        player.pro_accolades = ["no_awards"]
     df["pro_bowl_" + str(year_num)] = [data1]
     df["all_pro_" + str(year_num)] = [data2]
 
