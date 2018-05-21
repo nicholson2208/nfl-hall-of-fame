@@ -99,6 +99,7 @@ def read_playerlist_from_csv(starting_range=1985, ending_range=2005, path="../da
 
             return players
 
+
 def scrape_players():
     """
 
@@ -146,7 +147,6 @@ def scrape_player(player):
     return df
 
 
-
 def get_passing(player, soup, df):
     """
     Jayden
@@ -156,19 +156,22 @@ def get_passing(player, soup, df):
     :return:
     """
     passing_table_list = soup.find_all("div", {"id": "div_passing"})
-    start_yr = player.starting_year
+    passing_table = None
 
-    if len(passing_table_list) == 0:
-        # either make a bunch of 0s or TBD
-        pass
-    else:
+    if not passing_table_list or len(passing_table_list) == 0:
+        print("{0} had no passing stats".format(player.name))
+    else: # there should only be one
+        passing_table = passing_table_list[0]
+
+    if passing_table:
+        start_yr = player.starting_year
+
         passing_table = passing_table_list[0]
         for year_num in range(4):
             this_year_stats = passing_table.find("tr", {"id": "passing." + str(start_yr + year_num)})
 
             if not this_year_stats:
-                # placeholder
-                print(start_yr + year_num)
+                print("{0} has no passing stats in {1}".format(player.name, start_yr + year_num))
                 continue
 
             for datum in this_year_stats.find_all("td"):
@@ -325,19 +328,22 @@ def get_kick_punt(player, soup, df):
     :return:
     """
     kicking_table_list = soup.find_all("div", {"id": "div_kicking"})
-    start_yr = player.starting_year
+    kicking_table = None
 
-    if len(kicking_table_list) == 0:
-        # either make a bunch of 0s or TBD
-        pass
-    else:
+    if not kicking_table_list or len(kicking_table_list) == 0:
+        print("{0} had no kicking and punting stats".format(player.name))
+    else:  # there should only be one
+        kicking_table = kicking_table_list[0]
+
+    if kicking_table:
+        start_yr = player.starting_year
+
         kicking_table = kicking_table_list[0]
         for year_num in range(4):
             this_year_stats = kicking_table.find("tr", {"id": "kicking." + str(start_yr + year_num)})
 
             if not this_year_stats:
-                # placeholder
-                print(start_yr + year_num)
+                print("{0} has no kicking and punting stats in {1}".format(player.name, start_yr + year_num))
                 continue
 
             for datum in this_year_stats.find_all("td"):
@@ -369,6 +375,7 @@ def get_kick_punt(player, soup, df):
 
     return df
 
+
 def get_defense(player, soup, df):
     """
     Jayden
@@ -378,19 +385,22 @@ def get_defense(player, soup, df):
     :return:
     """
     def_table_list = soup.find_all("div", {"id": "div_defense"})
-    start_yr = player.starting_year
+    def_table = None
 
-    if len(def_table_list) == 0:
-        # either make a bunch of 0s or TBD
-        pass
-    else:
+    if not def_table_list or len(def_table_list) == 0:
+        print("{0} had no defense stats".format(player.name))
+    else:  # there should only be one
+        def_table = def_table_list[0]
+
+    if def_table:
+        start_yr = player.starting_year
+
         def_table = def_table_list[0]
         for year_num in range(4):
-            this_year_stats = def_table.find("tr", {"id": "kicking." + str(start_yr + year_num)})
+            this_year_stats = def_table.find("tr", {"id": "defense." + str(start_yr + year_num)})
 
             if not this_year_stats:
-                # placeholder
-                print(start_yr + year_num)
+                print("{0} has no defense stats in {1}".format(player.name, start_yr + year_num))
                 continue
 
             for datum in this_year_stats.find_all("td"):
@@ -420,6 +430,7 @@ def get_defense(player, soup, df):
                 df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
+
 
 def get_pro_accolades(this_year_stats, year_num, df, player):
     year_label = this_year_stats.find("th")
@@ -475,7 +486,6 @@ def summarize_positions(players):
                 hof_by_positions[pos][1] = 1  # the total num of players in this position
                 if player.hall_of_famer:  #
                     hof_by_positions[pos][0] = 1  # the number of hof players in this position
-
 
         for k,v in hof_by_positions.items():
             print("There are {0} {1}s".format(v[1],k))
