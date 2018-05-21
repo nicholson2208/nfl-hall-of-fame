@@ -120,6 +120,8 @@ def scrape_players(starting_range=1985, ending_range=2005):
 
     for player in players:
         df = scrape_player(player)
+        df["name"] = player.name
+        df["HOF"] = player.hall_of_famer
         all_player_data = pd.concat([all_player_data, df])
 
     write_player_data_to_csv(all_player_data, path="../data/player_data{0}-{1}.csv".format(starting_range, ending_range))
