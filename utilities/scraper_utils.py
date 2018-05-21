@@ -180,7 +180,7 @@ def get_passing(player, soup, df):
 
                 try:
                     # get value of attribute
-                    if stat_name == "team":
+                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
                         data = shorter.split('title="')[1].split('"')[0]
                     elif stat_name == "qb_rec":
                         data = shorter.split('csk="')[1].split('"')[0]
@@ -241,7 +241,7 @@ def get_rush_rec(player, soup, df):
                 stat_name = shorter.split('"')[1]
 
                 try:
-                    if stat_name == "team":
+                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
                         data = shorter.split('title="')[1].split('"')[0]
                     else:
                         data = shorter.split(">")[1].split("<")[0]
@@ -298,7 +298,7 @@ def get_returns(player, soup, df):
                 stat_name = shorter.split('"')[1]
 
                 try:
-                    if stat_name == "team":
+                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
                         data = shorter.split('title="')[1].split('"')[0]
                     else:
                         data = shorter.split(">")[1].split("<")[0]
@@ -352,7 +352,7 @@ def get_kick_punt(player, soup, df):
 
                 try:
                     # get value of attribute
-                    if stat_name == "team":
+                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
                         data = shorter.split('title="')[1].split('"')[0]
                     else:
                         data = shorter.split(">")[1].split("<")[0]
@@ -409,8 +409,7 @@ def get_defense(player, soup, df):
 
                 try:
                     # get value of attribute
-                    # Todo: handle 2TM
-                    if stat_name == "team":
+                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
                         data = shorter.split('title="')[1].split('"')[0]
                     else:
                         data = shorter.split(">")[1].split("<")[0]
