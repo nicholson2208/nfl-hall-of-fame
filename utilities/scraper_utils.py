@@ -3,6 +3,7 @@ import time
 import csv
 import os
 import pandas as pd
+import numpy as np
 from bs4 import BeautifulSoup
 
 
@@ -85,12 +86,13 @@ def read_playerlist_from_csv(starting_range=1985, ending_range=2005, path="../da
             players = []
             for line in csv_reader:
                 name = line[0]
-                position = eval(line[1]) # TODO: oops, I forgot to put this in the csv
+                position = eval(line[1])
                 website = line[2]
                 start = int(line[3])
                 end = int(line[4])
                 hof = int(line[5])
 
+                # TODO: check the weird thing with Rabih Abdullah
                 if start >= starting_range and end <= ending_range:  # filter the player that we actually want
                     player = Player(name, website, position, start, end, hof)
                     players.append(player)
@@ -100,23 +102,27 @@ def read_playerlist_from_csv(starting_range=1985, ending_range=2005, path="../da
             return players
 
 
-def scrape_players():
+def scrape_players(starting_range=1985, ending_range=2005):
     """
 
     :return:
     """
-    starting_range = 1985
-    ending_range = 2005
 
-    # TODO: Add the thing with sys to see if the file exists. If yes, read it. Do the scrape again
-    players = read_playerlist_from_csv(starting_range=starting_range, ending_range=ending_range)
+    if os.path.exists("../data/player_list.csv"):
+        players = read_playerlist_from_csv(starting_range=starting_range, ending_range=ending_range)
+    else:
+        get_players()
+        players = read_playerlist_from_csv(starting_range=starting_range, ending_range=ending_range)
 
 
     # TODO: change this next line back to player
-    for player in players[:10]:
-        scrape_player(player)
+    all_player_data = pd.DataFrame()
 
-    write_player_data_to_csv(players, path="../data/player_data{0}-{1}.csv".format(starting_range,ending_range))
+    for player in players:
+        df = scrape_player(player)
+        all_player_data = pd.concat([all_player_data, df])
+
+    write_player_data_to_csv(all_player_data, path="../data/player_data{0}-{1}.csv".format(starting_range, ending_range))
 
 
 def scrape_player(player):
@@ -195,10 +201,10 @@ def get_passing(player, soup, df):
 
                     df[stat_name + "_" + str(year_num)] = [data]
                 except:
-                    df[stat_name + "_" + str(year_num)] = "?"
+                    df[stat_name + "_" + str(year_num)] = np.NaN
 
             # ProBowl/AllPro Info
-            if not player.pro_accolades:
+            if not player.checked_pro_accolades[year_num]:
                 df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
@@ -220,9 +226,10 @@ def get_rush_rec(player, soup, df):
 
     if not rush_rec_table_list or len(rush_rec_table_list) == 0:
         # they might be a WR and have the same table but stored differently
-        rush_rec_table_list = soup.find("div", {"id": "div_receiving_and_rushing"})
+        rush_rec_table_list = soup.find_all("div", {"id": "div_receiving_and_rushing"})
         if not rush_rec_table_list or len(rush_rec_table_list) == 0:  # either make a bunch of 0s or
             print("{0} had no rushing and receiving stats".format(player.name))
+            return df
         else: # there should only be one
             rush_rec_table = rush_rec_table_list[0]
 
@@ -254,9 +261,9 @@ def get_rush_rec(player, soup, df):
 
                         df[stat_name + "_" + str(year_num)] = [float(data)]
                 except:
-                    df[stat_name + "_" + str(year_num)] = "?"
+                    df[stat_name + "_" + str(year_num)] = np.NaN
 
-            if not player.pro_accolades:
+            if not player.checked_pro_accolades[year_num]:
                 df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
@@ -279,7 +286,7 @@ def get_returns(player, soup, df):
         returns_table = returns_table_list[0]
 
     if not returns_table_list or len(returns_table_list) == 0:
-        print("{0} had no rushing and receiving stats".format(player.name))
+        print("{0} had no return stats".format(player.name))
     else: # there should only be one
         returns_table = returns_table_list[0]
 
@@ -287,10 +294,10 @@ def get_returns(player, soup, df):
         start_yr = player.starting_year
 
         for year_num in range(4):
-            this_year_stats = returns_table.find("tr", {"id": "rushing_and_receiving." + str(start_yr + year_num)})
+            this_year_stats = returns_table.find("tr", {"id": "returns." + str(start_yr + year_num)})
 
             if not this_year_stats:
-                print("{0} has no rush or rec stats in {1}".format(player.name,start_yr + year_num))
+                print("{0} has no rush or rec stats in {1}".format(player.name, start_yr + year_num))
                 continue
 
             for datum in this_year_stats.find_all("td"):
@@ -311,9 +318,9 @@ def get_returns(player, soup, df):
 
                         df[stat_name + "_" + str(year_num)] = [float(data)]
                 except:
-                    df[stat_name + "_" + str(year_num)] = "?"
+                    df[stat_name + "_" + str(year_num)] = np.NaN
 
-            if not player.pro_accolades:
+            if not player.checked_pro_accolades[year_num]:
                 df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
@@ -367,10 +374,10 @@ def get_kick_punt(player, soup, df):
 
                     df[stat_name + "_" + str(year_num)] = [data]
                 except:
-                    df[stat_name + "_" + str(year_num)] = "?"
+                    df[stat_name + "_" + str(year_num)] = np.NaN
 
             # ProBowl/AllPro Info
-            if not player.pro_accolades:
+            if not player.checked_pro_accolades[year_num]:
                 df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
@@ -422,10 +429,10 @@ def get_defense(player, soup, df):
 
                     df[stat_name + "_" + str(year_num)] = [data]
                 except:
-                    df[stat_name + "_" + str(year_num)] = "?"
+                    df[stat_name + "_" + str(year_num)] = np.NaN
 
             # ProBowl/AllPro Info
-            if not player.pro_accolades:
+            if not player.checked_pro_accolades[year_num]:
                 df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
@@ -433,32 +440,44 @@ def get_defense(player, soup, df):
 
 def get_pro_accolades(this_year_stats, year_num, df, player):
     year_label = this_year_stats.find("th")
-    data = str(year_label).split("</a>")[1].split("</th>")[0]
-    print(data)
-    if data == "*+":
-        data1 = True
-        data2 = True
-        player.pro_accolades = ["pro_bowl", "all_pro"]
-    elif data == "*":
-        data1 = True
-        data2 = False
-        player.pro_accolades = ["pro_bowl"]
-    elif data == "+":
-        data1 = False
-        data2 = True
-        player.pro_accolades = ["all_pro"]
+    # data = str(year_label).split("</a>")[1].split("</th>")[0]
+    #print(data)
+    if "*" in year_label:
+        pro_bowl = True
     else:
-        data1 = False
-        data2 = False
-        player.pro_accolades = ["no_awards"]
-    df["pro_bowl_" + str(year_num)] = [data1]
-    df["all_pro_" + str(year_num)] = [data2]
+        pro_bowl = False
+
+    if "+" in year_label:
+        all_pro = True
+    else:
+        all_pro = False
+
+    player.checked_pro_accolades[year_num] = True
+    # if data == "*+":
+    #     data1 = True
+    #     data2 = True
+    #     player.pro_accolades = ["pro_bowl", "all_pro"]
+    # elif data == "*":
+    #     data1 = True
+    #     data2 = False
+    #     player.pro_accolades = ["pro_bowl"]
+    # elif data == "+":
+    #     data1 = False
+    #     data2 = True
+    #     player.pro_accolades = ["all_pro"]
+    # else:
+    #     data1 = False
+    #     data2 = False
+    #     player.pro_accolades = ["no_awards"]
+    df["pro_bowl_" + str(year_num)] = [pro_bowl]
+    df["all_pro_" + str(year_num)] = [all_pro]
 
     return df
 
 
 def write_player_data_to_csv(df, path="../data/player_data.csv"):
-    pass
+    df.to_csv(path)
+
 
 
 def summarize_positions(players):
