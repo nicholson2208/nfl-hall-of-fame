@@ -132,29 +132,19 @@ def scrape_player(player):
 
     df = pd.DataFrame()
 
-    get_passing(player, soup, df)
+    df = get_passing(player, soup, df)
+    print(df.shape)
+    df = get_rush_rec(player, soup, df)
+    print(df.shape)
+    df = get_returns(player, soup, df)
+    print(df.shape)
+    df = get_kick_punt(player, soup, df)
+    print(df.shape)
+    df = get_defense(player, soup, df)
+    print(df.shape)
 
-    get_rush_rec(player, soup, df)
+    return df
 
-    get_returns(player, soup, df)
-
-    get_kick_punt(player, soup, df)
-
-    get_defense(player, soup, df)
-
-    # get passing stats
-    # J
-
-    # get rushing and rec stats
-    rush_rec_table_list = soup.find_all("div", {"id": "div_rushing_and_receiving"})
-
-    if len(rush_rec_table_list) == 0:
-        # either make a bunch of 0s or TBD
-        pass
-    else:
-        # there should only be one
-        # now get all of the shit
-        print()
 
 
 def get_passing(player, soup, df):
@@ -206,7 +196,9 @@ def get_passing(player, soup, df):
 
             # ProBowl/AllPro Info
             if not player.pro_accolades:
-                get_pro_accolades(this_year_stats, year_num, df, player)
+                df = get_pro_accolades(this_year_stats, year_num, df, player)
+
+    return df
 
 
 def get_rush_rec(player, soup, df):
@@ -217,7 +209,54 @@ def get_rush_rec(player, soup, df):
     :param df:
     :return:
     """
-    pass
+    rush_rec_table_list = soup.find_all("div", {"id": "div_rushing_and_receiving"})
+    rush_rec_table = None
+
+    if rush_rec_table_list:
+        rush_rec_table = rush_rec_table_list[0]
+
+    if not rush_rec_table_list or len(rush_rec_table_list) == 0:
+        # they might be a WR and have the same table but stored differently
+        rush_rec_table_list = soup.find("div", {"id": "div_receiving_and_rushing"})
+        if not rush_rec_table_list or len(rush_rec_table_list) == 0:  # either make a bunch of 0s or
+            print("{0} had no rushing and receiving stats".format(player.name))
+        else: # there should only be one
+            rush_rec_table = rush_rec_table_list[0]
+
+    if rush_rec_table:
+        start_yr = player.starting_year
+
+        for year_num in range(4):
+            this_year_stats = rush_rec_table.find("tr", {"id": "rushing_and_receiving." + str(start_yr + year_num)})
+
+            if not this_year_stats:
+                print("{0} has no rush or rec stats in {1}".format(player.name,start_yr + year_num))
+                continue
+
+            for datum in this_year_stats.find_all("td"):
+                shorter = str(datum).split("data-stat")[1]
+                stat_name = shorter.split('"')[1]
+
+                try:
+                    if stat_name == "team":
+                        data = shorter.split('title="')[1].split('"')[0]
+                    else:
+                        data = shorter.split(">")[1].split("<")[0]
+
+                    if stat_name == "team" or stat_name == "pos":
+                        df[stat_name + "_" + str(year_num)] = [data.upper()]
+                    else:
+                        if stat_name == "catch_pct":
+                            data = data.split("%")[0]
+
+                        df[stat_name + "_" + str(year_num)] = [float(data)]
+                except:
+                    df[stat_name + "_" + str(year_num)] = "?"
+
+            if not player.pro_accolades:
+                df = get_pro_accolades(this_year_stats, year_num, df, player)
+
+    return df
 
 
 def get_returns(player, soup, df):
@@ -228,7 +267,53 @@ def get_returns(player, soup, df):
     :param df:
     :return:
     """
-    pass
+    # TODO: av is PFR's metric to compare all players, so its not average and we might want to exclude it?
+
+    returns_table_list = soup.find_all("div", {"id": "div_returns"})
+    returns_table = None
+
+    if returns_table_list:
+        returns_table = returns_table_list[0]
+
+    if not returns_table_list or len(returns_table_list) == 0:
+        print("{0} had no rushing and receiving stats".format(player.name))
+    else: # there should only be one
+        returns_table = returns_table_list[0]
+
+    if returns_table:
+        start_yr = player.starting_year
+
+        for year_num in range(4):
+            this_year_stats = returns_table.find("tr", {"id": "rushing_and_receiving." + str(start_yr + year_num)})
+
+            if not this_year_stats:
+                print("{0} has no rush or rec stats in {1}".format(player.name,start_yr + year_num))
+                continue
+
+            for datum in this_year_stats.find_all("td"):
+                shorter = str(datum).split("data-stat")[1]
+                stat_name = shorter.split('"')[1]
+
+                try:
+                    if stat_name == "team":
+                        data = shorter.split('title="')[1].split('"')[0]
+                    else:
+                        data = shorter.split(">")[1].split("<")[0]
+
+                    if stat_name == "team" or stat_name == "pos":
+                        df[stat_name + "_" + str(year_num)] = [data.upper()]
+                    else:
+                        if stat_name == "catch_pct":
+                            data = data.split("%")[0]
+
+                        df[stat_name + "_" + str(year_num)] = [float(data)]
+                except:
+                    df[stat_name + "_" + str(year_num)] = "?"
+
+            if not player.pro_accolades:
+                df = get_pro_accolades(this_year_stats, year_num, df, player)
+
+    return df
 
 
 def get_kick_punt(player, soup, df):
@@ -280,8 +365,9 @@ def get_kick_punt(player, soup, df):
 
             # ProBowl/AllPro Info
             if not player.pro_accolades:
-                get_pro_accolades(this_year_stats, year_num, df, player)
+                df = get_pro_accolades(this_year_stats, year_num, df, player)
 
+    return df
 
 def get_defense(player, soup, df):
     """
@@ -331,8 +417,9 @@ def get_defense(player, soup, df):
 
             # ProBowl/AllPro Info
             if not player.pro_accolades:
-                get_pro_accolades(this_year_stats, year_num, df, player)
+                df = get_pro_accolades(this_year_stats, year_num, df, player)
 
+    return df
 
 def get_pro_accolades(this_year_stats, year_num, df, player):
     year_label = this_year_stats.find("th")
@@ -357,8 +444,10 @@ def get_pro_accolades(this_year_stats, year_num, df, player):
     df["pro_bowl_" + str(year_num)] = [data1]
     df["all_pro_" + str(year_num)] = [data2]
 
+    return df
 
-def write_player_data_to_csv(players, path="../data/player_data.csv"):
+
+def write_player_data_to_csv(df, path="../data/player_data.csv"):
     pass
 
 
