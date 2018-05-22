@@ -115,16 +115,19 @@ def scrape_players(starting_range=1985, ending_range=2005):
         players = read_playerlist_from_csv(starting_range=starting_range, ending_range=ending_range)
 
 
-    # TODO: change this next line back to player
+
     all_player_data = pd.DataFrame()
 
-    for player in players:
+    # TODO: change this next line back to player
+    for player in players[:200]:
         df = scrape_player(player)
-        df["name"] = player.name
+        df["name"] = player.name.replace("'","")
         df["HOF"] = player.hall_of_famer
+        df = df.drop(["pos_0", "pos_1", "pos_2", "pos_3"], axis=1, errors="ignore")
+
         all_player_data = pd.concat([all_player_data, df])
 
-    write_player_data_to_csv(all_player_data, path="../data/player_data{0}-{1}.csv".format(starting_range, ending_range))
+    write_player_data_to_csv(all_player_data, path="../data/test_player_data{0}-{1}.csv".format(starting_range, ending_range))
 
 
 def scrape_player(player):
@@ -444,17 +447,20 @@ def get_pro_accolades(this_year_stats, year_num, df, player):
     year_label = this_year_stats.find("th")
     # data = str(year_label).split("</a>")[1].split("</th>")[0]
     #print(data)
+    if "Troy" in player.name:
+        print()
+
     if "*" in year_label:
-        pro_bowl = True
+        pro_bowl = 1
     else:
-        pro_bowl = False
+        pro_bowl = 0
 
     if "+" in year_label:
-        all_pro = True
+        all_pro = 1
     else:
-        all_pro = False
+        all_pro = 0
 
-    player.checked_pro_accolades[year_num] = True
+    player.checked_pro_accolades[year_num] = 1
     # if data == "*+":
     #     data1 = True
     #     data2 = True
@@ -478,8 +484,8 @@ def get_pro_accolades(this_year_stats, year_num, df, player):
 
 
 def write_player_data_to_csv(df, path="../data/player_data.csv"):
-    df.to_csv(path)
-
+    df = df.replace(np.NaN, 0)
+    df.to_csv(path, index=False)
 
 
 def summarize_positions(players):
