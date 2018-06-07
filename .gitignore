@@ -108,3 +108,4 @@ ENV/
 
 # ipython notebooks
 *.ipynb
+.ipynb_checkpoints
