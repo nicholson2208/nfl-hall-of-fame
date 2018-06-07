@@ -44,7 +44,7 @@ def get_players():
                 website = "https://www.pro-football-reference.com" + website
                 players.append(Player(name, website, position, starting, ending, hof))
 
-            except:
+            except IndexError:
                 print("Something weird with {0}".format(player_anchor_tag))
 
     print(len(players))
@@ -114,25 +114,23 @@ def scrape_players(starting_range=1985, ending_range=2005):
         get_players()
         players = read_playerlist_from_csv(starting_range=starting_range, ending_range=ending_range)
 
-
-
     all_player_data = pd.DataFrame()
 
-    # TODO: change this next line back to player
-    for player in players[:200]:
+    for player in players:
         df = scrape_player(player)
         df["name"] = player.name.replace("'","")
         df["HOF"] = player.hall_of_famer
-        df = df.drop(["pos_0", "pos_1", "pos_2", "pos_3"], axis=1, errors="ignore")
+        #df = df.drop(["pos_0", "pos_1", "pos_2", "pos_3"], axis=1, errors="ignore")
 
         all_player_data = pd.concat([all_player_data, df])
 
-    write_player_data_to_csv(all_player_data, path="../data/test_player_data{0}-{1}.csv".format(starting_range, ending_range))
+    write_player_data_to_csv(all_player_data, path="../data/year_player_data{0}-{1}.csv".format(starting_range, ending_range))
 
 
-def scrape_player(player):
+def scrape_player(player, years="ALL"):
     """
     a function that add the the players
+    :param years:
     :param player:
     :return:
     """
@@ -143,27 +141,45 @@ def scrape_player(player):
     soup = BeautifulSoup(r.content, "lxml")
 
     df = pd.DataFrame()
+    temp_df = pd.DataFrame()
 
-    df = get_passing(player, soup, df)
-    print(df.shape)
-    df = get_rush_rec(player, soup, df)
-    print(df.shape)
-    df = get_returns(player, soup, df)
-    print(df.shape)
-    df = get_kick_punt(player, soup, df)
-    print(df.shape)
-    df = get_defense(player, soup, df)
+    if years == "ALL":
+        for year_num in range(player.ending_year - player.starting_year):
+            temp_df = get_passing(player, years, soup, temp_df, individual_year=year_num)
+            # print(df.shape)
+            temp_df = get_rush_rec(player, years, soup, temp_df, individual_year=year_num)
+            # print(df.shape)
+            temp_df = get_returns(player, years, soup, temp_df, individual_year=year_num)
+            #print(df.shape)
+            temp_df = get_kick_punt(player, years, soup, temp_df, individual_year=year_num)
+            #print(df.shape)
+            temp_df = get_defense(player, years, soup, temp_df, individual_year=year_num)
+
+            df = pd.concat([df, temp_df], axis=0)
+    else:
+        df = get_passing(player, years, soup, df)
+        print(df.shape)
+        df = get_rush_rec(player, years, soup, df)
+        print(df.shape)
+        df = get_returns(player, years, soup, df)
+        print(df.shape)
+        df = get_kick_punt(player, years, soup, df)
+        print(df.shape)
+        df = get_defense(player, years, soup, df)
+
     print(df.shape)
 
     return df
 
 
-def get_passing(player, soup, df):
+def get_passing(player, years, soup, df, individual_year=None):
     """
     Jayden
+    :param years
     :param player:
     :param soup:
     :param df:
+    :param individual_year
     :return:
     """
     passing_table_list = soup.find_all("div", {"id": "div_passing"})
@@ -178,44 +194,82 @@ def get_passing(player, soup, df):
         start_yr = player.starting_year
 
         passing_table = passing_table_list[0]
-        for year_num in range(4):
+
+        if years == "ALL" or "all":
+            year_num = individual_year
             this_year_stats = passing_table.find("tr", {"id": "passing." + str(start_yr + year_num)})
 
             if not this_year_stats:
                 print("{0} has no passing stats in {1}".format(player.name, start_yr + year_num))
-                continue
+            else:
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
 
-            for datum in this_year_stats.find_all("td"):
-                shorter = str(datum).split("data-stat")[1]
-                stat_name = shorter.split('"')[1]
+                    try:
+                        # get value of attribute
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        elif stat_name == "qb_rec":
+                            data = shorter.split('csk="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
 
-                try:
-                    # get value of attribute
-                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
-                        data = shorter.split('title="')[1].split('"')[0]
-                    elif stat_name == "qb_rec":
-                        data = shorter.split('csk="')[1].split('"')[0]
-                    else:
-                        data = shorter.split(">")[1].split("<")[0]
+                        # format value of attribute
+                        if stat_name == "team" or stat_name == "pos":
+                            data = data.upper()
+                        else:
+                            data = float(data)
 
-                    # format value of attribute
-                    if stat_name == "team" or stat_name == "pos":
-                        data = data.upper()
-                    else:
-                        data = float(data)
+                        df[stat_name] = [data]
+                    except:
+                        df[stat_name] = np.NaN
 
-                    df[stat_name + "_" + str(year_num)] = [data]
-                except:
-                    df[stat_name + "_" + str(year_num)] = np.NaN
+                # ProBowl/AllPro Info
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player, method="ALL")
 
-            # ProBowl/AllPro Info
-            if not player.checked_pro_accolades[year_num]:
-                df = get_pro_accolades(this_year_stats, year_num, df, player)
+
+        else:
+
+            for year_num in range(years):
+                this_year_stats = passing_table.find("tr", {"id": "passing." + str(start_yr + year_num)})
+
+                if not this_year_stats:
+                    print("{0} has no passing stats in {1}".format(player.name, start_yr + year_num))
+                    continue
+
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
+
+                    try:
+                        # get value of attribute
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        elif stat_name == "qb_rec":
+                            data = shorter.split('csk="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
+
+                        # format value of attribute
+                        if stat_name == "team" or stat_name == "pos":
+                            data = data.upper()
+                        else:
+                            data = float(data)
+
+                        df[stat_name + "_" + str(year_num)] = [data]
+                    except:
+                        df[stat_name + "_" + str(year_num)] = np.NaN
+
+                # ProBowl/AllPro Info
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
 
 
-def get_rush_rec(player, soup, df):
+def get_rush_rec(player, years, soup, df,  individual_year=None):
     """
     Matt
     :param player:
@@ -241,40 +295,72 @@ def get_rush_rec(player, soup, df):
     if rush_rec_table:
         start_yr = player.starting_year
 
-        for year_num in range(4):
+        if years == "ALL" or "all":
+            year_num = individual_year
             this_year_stats = rush_rec_table.find("tr", {"id": "rushing_and_receiving." + str(start_yr + year_num)})
 
             if not this_year_stats:
-                print("{0} has no rush or rec stats in {1}".format(player.name,start_yr + year_num))
-                continue
+                print("{0} has no rush or rec stats in {1}".format(player.name, start_yr + year_num))
+            else:
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
 
-            for datum in this_year_stats.find_all("td"):
-                shorter = str(datum).split("data-stat")[1]
-                stat_name = shorter.split('"')[1]
+                    try:
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
 
-                try:
-                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
-                        data = shorter.split('title="')[1].split('"')[0]
-                    else:
-                        data = shorter.split(">")[1].split("<")[0]
+                        if stat_name == "team" or stat_name == "pos":
+                            df[stat_name] = [data.upper()]
+                        else:
+                            if stat_name == "catch_pct":
+                                data = data.split("%")[0]
 
-                    if stat_name == "team" or stat_name == "pos":
-                        df[stat_name + "_" + str(year_num)] = [data.upper()]
-                    else:
-                        if stat_name == "catch_pct":
-                            data = data.split("%")[0]
+                            df[stat_name] = [float(data)]
+                    except:
+                        df[stat_name] = np.NaN
 
-                        df[stat_name + "_" + str(year_num)] = [float(data)]
-                except:
-                    df[stat_name + "_" + str(year_num)] = np.NaN
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player, method="ALL")
 
-            if not player.checked_pro_accolades[year_num]:
-                df = get_pro_accolades(this_year_stats, year_num, df, player)
+        else:
+
+            for year_num in range(4):
+                this_year_stats = rush_rec_table.find("tr", {"id": "rushing_and_receiving." + str(start_yr + year_num)})
+
+                if not this_year_stats:
+                    print("{0} has no rush or rec stats in {1}".format(player.name,start_yr + year_num))
+                    continue
+
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
+
+                    try:
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
+
+                        if stat_name == "team" or stat_name == "pos":
+                            df[stat_name + "_" + str(year_num)] = [data.upper()]
+                        else:
+                            if stat_name == "catch_pct":
+                                data = data.split("%")[0]
+
+                            df[stat_name + "_" + str(year_num)] = [float(data)]
+                    except:
+                        df[stat_name + "_" + str(year_num)] = np.NaN
+
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
 
 
-def get_returns(player, soup, df):
+def get_returns(player, years, soup, df,  individual_year=None):
     """
     Matt
     :param player:
@@ -298,40 +384,73 @@ def get_returns(player, soup, df):
     if returns_table:
         start_yr = player.starting_year
 
-        for year_num in range(4):
+        if years == "ALL" or years == "all":
+            year_num = individual_year
             this_year_stats = returns_table.find("tr", {"id": "returns." + str(start_yr + year_num)})
 
             if not this_year_stats:
                 print("{0} has no rush or rec stats in {1}".format(player.name, start_yr + year_num))
-                continue
+            else:
 
-            for datum in this_year_stats.find_all("td"):
-                shorter = str(datum).split("data-stat")[1]
-                stat_name = shorter.split('"')[1]
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
 
-                try:
-                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
-                        data = shorter.split('title="')[1].split('"')[0]
-                    else:
-                        data = shorter.split(">")[1].split("<")[0]
+                    try:
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
 
-                    if stat_name == "team" or stat_name == "pos":
-                        df[stat_name + "_" + str(year_num)] = [data.upper()]
-                    else:
-                        if stat_name == "catch_pct":
-                            data = data.split("%")[0]
+                        if stat_name == "team" or stat_name == "pos":
+                            df[stat_name] = [data.upper()]
+                        else:
+                            if stat_name == "catch_pct":
+                                data = data.split("%")[0]
 
-                        df[stat_name + "_" + str(year_num)] = [float(data)]
-                except:
-                    df[stat_name + "_" + str(year_num)] = np.NaN
+                            df[stat_name] = [float(data)]
+                    except:
+                        df[stat_name] = np.NaN
 
-            if not player.checked_pro_accolades[year_num]:
-                df = get_pro_accolades(this_year_stats, year_num, df, player)
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player, method="ALL")
+
+        else:
+
+            for year_num in range(4):
+                this_year_stats = returns_table.find("tr", {"id": "returns." + str(start_yr + year_num)})
+
+                if not this_year_stats:
+                    print("{0} has no rush or rec stats in {1}".format(player.name, start_yr + year_num))
+                    continue
+
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
+
+                    try:
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
+
+                        if stat_name == "team" or stat_name == "pos":
+                            df[stat_name + "_" + str(year_num)] = [data.upper()]
+                        else:
+                            if stat_name == "catch_pct":
+                                data = data.split("%")[0]
+
+                            df[stat_name + "_" + str(year_num)] = [float(data)]
+                    except:
+                        df[stat_name + "_" + str(year_num)] = np.NaN
+
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
 
 
-def get_kick_punt(player, soup, df):
+def get_kick_punt(player, years, soup, df,  individual_year=None):
     """
     Jayden
     :param player:
@@ -349,46 +468,81 @@ def get_kick_punt(player, soup, df):
 
     if kicking_table:
         start_yr = player.starting_year
-
         kicking_table = kicking_table_list[0]
-        for year_num in range(4):
+
+        if years == "ALL" or years == "all":
+            year_num = individual_year
+
             this_year_stats = kicking_table.find("tr", {"id": "kicking." + str(start_yr + year_num)})
 
             if not this_year_stats:
                 print("{0} has no kicking and punting stats in {1}".format(player.name, start_yr + year_num))
-                continue
+            else:
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
 
-            for datum in this_year_stats.find_all("td"):
-                shorter = str(datum).split("data-stat")[1]
-                stat_name = shorter.split('"')[1]
+                    try:
+                        # get value of attribute
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
 
-                try:
-                    # get value of attribute
-                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
-                        data = shorter.split('title="')[1].split('"')[0]
-                    else:
-                        data = shorter.split(">")[1].split("<")[0]
+                        # format value of attribute
+                        if stat_name == "team" or stat_name == "pos":
+                            data = data.upper()
+                        elif stat_name == "fg_per" or "xp_per":
+                            data = float(data.split("%")[0])
+                        else:
+                            data = float(data)
 
-                    # format value of attribute
-                    if stat_name == "team" or stat_name == "pos":
-                        data = data.upper()
-                    elif stat_name == "fg_per" or "xp_per":
-                        data = float(data.split("%")[0])
-                    else:
-                        data = float(data)
+                        df[stat_name] = [data]
+                    except:
+                        df[stat_name] = np.NaN
 
-                    df[stat_name + "_" + str(year_num)] = [data]
-                except:
-                    df[stat_name + "_" + str(year_num)] = np.NaN
+                    if not player.checked_pro_accolades[year_num]:
+                        df = get_pro_accolades(this_year_stats, year_num, df, player, method="ALL")
+        else:
 
-            # ProBowl/AllPro Info
-            if not player.checked_pro_accolades[year_num]:
-                df = get_pro_accolades(this_year_stats, year_num, df, player)
+            for year_num in range(4):
+                this_year_stats = kicking_table.find("tr", {"id": "kicking." + str(start_yr + year_num)})
+
+                if not this_year_stats:
+                    print("{0} has no kicking and punting stats in {1}".format(player.name, start_yr + year_num))
+                    continue
+
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
+
+                    try:
+                        # get value of attribute
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
+
+                        # format value of attribute
+                        if stat_name == "team" or stat_name == "pos":
+                            data = data.upper()
+                        elif stat_name == "fg_per" or "xp_per":
+                            data = float(data.split("%")[0])
+                        else:
+                            data = float(data)
+
+                        df[stat_name + "_" + str(year_num)] = [data]
+                    except:
+                        df[stat_name + "_" + str(year_num)] = np.NaN
+
+                # ProBowl/AllPro Info
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
 
 
-def get_defense(player, soup, df):
+def get_defense(player, years, soup, df, individual_year=None):
     """
     Jayden
     :param player:
@@ -407,43 +561,75 @@ def get_defense(player, soup, df):
     if def_table:
         start_yr = player.starting_year
 
-        def_table = def_table_list[0]
-        for year_num in range(4):
+        if years == "ALL" or years == "all":
+            year_num = individual_year
             this_year_stats = def_table.find("tr", {"id": "defense." + str(start_yr + year_num)})
 
             if not this_year_stats:
                 print("{0} has no defense stats in {1}".format(player.name, start_yr + year_num))
-                continue
 
-            for datum in this_year_stats.find_all("td"):
-                shorter = str(datum).split("data-stat")[1]
-                stat_name = shorter.split('"')[1]
+            else:
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
 
-                try:
-                    # get value of attribute
-                    if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
-                        data = shorter.split('title="')[1].split('"')[0]
-                    else:
-                        data = shorter.split(">")[1].split("<")[0]
+                    try:
+                        # get value of attribute
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
 
-                    # format value of attribute
-                    if stat_name == "team" or stat_name == "pos":
-                        data = data.upper()
-                    else:
-                        data = float(data)
+                        # format value of attribute
+                        if stat_name == "team" or stat_name == "pos":
+                            data = data.upper()
+                        else:
+                            data = float(data)
 
-                    df[stat_name + "_" + str(year_num)] = [data]
-                except:
-                    df[stat_name + "_" + str(year_num)] = np.NaN
+                        df[stat_name] = [data]
+                    except:
+                        df[stat_name] = np.NaN
 
-            # ProBowl/AllPro Info
-            if not player.checked_pro_accolades[year_num]:
-                df = get_pro_accolades(this_year_stats, year_num, df, player)
+                    if not player.checked_pro_accolades[year_num]:
+                        df = get_pro_accolades(this_year_stats, year_num, df, player, method="ALL")
+
+        else:
+            for year_num in range(4):
+                this_year_stats = def_table.find("tr", {"id": "defense." + str(start_yr + year_num)})
+
+                if not this_year_stats:
+                    print("{0} has no defense stats in {1}".format(player.name, start_yr + year_num))
+                    continue
+
+                for datum in this_year_stats.find_all("td"):
+                    shorter = str(datum).split("data-stat")[1]
+                    stat_name = shorter.split('"')[1]
+
+                    try:
+                        # get value of attribute
+                        if stat_name == "team" and shorter.split(">")[1].split("<")[0] != "2TM":
+                            data = shorter.split('title="')[1].split('"')[0]
+                        else:
+                            data = shorter.split(">")[1].split("<")[0]
+
+                        # format value of attribute
+                        if stat_name == "team" or stat_name == "pos":
+                            data = data.upper()
+                        else:
+                            data = float(data)
+
+                        df[stat_name + "_" + str(year_num)] = [data]
+                    except:
+                        df[stat_name + "_" + str(year_num)] = np.NaN
+
+                # ProBowl/AllPro Info
+                if not player.checked_pro_accolades[year_num]:
+                    df = get_pro_accolades(this_year_stats, year_num, df, player)
 
     return df
 
 
-def get_pro_accolades(this_year_stats, year_num, df, player):
+def get_pro_accolades(this_year_stats, year_num, df, player, method=None):
     year_label = this_year_stats.find("th")
     # data = str(year_label).split("</a>")[1].split("</th>")[0]
     #print(data)
@@ -461,24 +647,13 @@ def get_pro_accolades(this_year_stats, year_num, df, player):
         all_pro = 0
 
     player.checked_pro_accolades[year_num] = 1
-    # if data == "*+":
-    #     data1 = True
-    #     data2 = True
-    #     player.pro_accolades = ["pro_bowl", "all_pro"]
-    # elif data == "*":
-    #     data1 = True
-    #     data2 = False
-    #     player.pro_accolades = ["pro_bowl"]
-    # elif data == "+":
-    #     data1 = False
-    #     data2 = True
-    #     player.pro_accolades = ["all_pro"]
-    # else:
-    #     data1 = False
-    #     data2 = False
-    #     player.pro_accolades = ["no_awards"]
-    df["pro_bowl_" + str(year_num)] = [pro_bowl]
-    df["all_pro_" + str(year_num)] = [all_pro]
+
+    if method != "ALL":
+        df["pro_bowl_" + str(year_num)] = [pro_bowl]
+        df["all_pro_" + str(year_num)] = [all_pro]
+    else:
+        df["pro_bowl"] = [pro_bowl]
+        df["all_pro"] = [all_pro]
 
     return df
 

@@ -10,7 +10,7 @@ class Player:
         self.passing = None
         self.rushing = None
         self.receiving = None
-        self.checked_pro_accolades = [False, False, False, False]
+        self.checked_pro_accolades = [False]*(int(self.ending_year) -  int(self.starting_year))
 
     def __str__(self) -> str:
         s = "{0} is {1}".format(self.name, "a Hall of Famer" if self.hall_of_famer else "is a scrub")
