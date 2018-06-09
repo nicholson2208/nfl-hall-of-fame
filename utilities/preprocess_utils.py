@@ -1,4 +1,5 @@
 import csv
+import pandas as pd
 
 from utilities.models import PlayerYear
 
@@ -67,6 +68,28 @@ def update_career_stats(player_years):
 
 def update_remaining_stats(player_years):
     return None
+
+
+def make_final_table(player_years,path="../data/", file="year_player_data1985-2005.csv", target="remaining_pro_bowl"):
+    """
+    a helper function for concating relevant target vars into the csv with data
+
+    :param player_years:
+    :param path:
+    :param file:
+    :param target:
+    :return:
+    """
+
+    data_df = pd.read_csv(path+file)
+    # worry about making sure that we don't have cheater features in Weka
+
+    target_df = pd.DataFrame(columns=[target])
+    for player_year in player_years:
+        target_df = target_df.append({target : getattr(player_year, target)})
+
+    out_df = pd.concat([data_df,target_df], axis=1)
+    out_df.to_csv(path + target + "_" + file)
 
 
 if __name__ == "__main__":
