@@ -39,12 +39,30 @@ def assign_career_lengths(player_years):
             curr_player = pyear.name
             career_length = 0
         career_length += 1
+
     for pyear in player_years:
         pyear.career_length = player_careers[pyear.name]
 
 
 def update_career_stats(player_years):
-    return None
+    curr_player = "start"
+    career_stats = [0,0,0,0]
+    player_careers = {}
+    for pyear in player_years:
+        if curr_player != pyear.name:
+            player_careers.update({curr_player: career_stats})
+            curr_player = pyear.name
+            career_stats = [0,0,0,0]
+        career_stats[0] += pyear.all_pro
+        career_stats[1] += pyear.pro_bowl
+        career_stats[2] += pyear.games
+        career_stats[3] += pyear.gs
+
+    for pyear in player_years:
+        pyear.career_all_pro = player_careers[pyear.name][0]
+        pyear.career_pro_bowl = player_careers[pyear.name][1]
+        pyear.career_games = player_careers[pyear.name][2]
+        pyear.career_gs = player_careers[pyear.name][3]
 
 
 def update_remaining_stats(player_years):
