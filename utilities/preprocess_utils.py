@@ -13,10 +13,10 @@ def read_scraped_player_years_from_csv(path="../data/year_player_data1985-2005.c
             name = line[38]
             age = line[1]
             hof = line[0]
-            all_pro = int(line[2])
-            pro_bowl = int(line[60])
-            games_played = int(line[30])
-            games_started = int(line[31])
+            all_pro = int(float(line[2]))
+            pro_bowl = int(float(line[60]))
+            games_played = int(float(line[30]))
+            games_started = int(float(line[31]))
 
             player_year = PlayerYear(name, age, hof, all_pro, pro_bowl, games_played, games_started)
             player_years.append(player_year)

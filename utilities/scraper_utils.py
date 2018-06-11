@@ -698,8 +698,8 @@ def summarize_positions(players):
 
 
 if __name__ == "__main__":
-    #get_players()
-    #players = read_playerlist_from_csv(starting_range=1985, ending_range=2005)
+    get_players()
+    players = read_playerlist_from_csv(starting_range=1985, ending_range=2005)
     scrape_players()
-    #summarize_positions(players)
+    summarize_positions(players)
 
